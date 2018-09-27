@@ -12,7 +12,7 @@ from torchvision import transforms, utils
 import warnings
 warnings.filterwarnings("ignore")
 
-# 65番目の顔の人のlandmarkを見たい
+# 65th landmarks
 n = 65
 landmarks_frame = pd.read_csv('faces/face_landmarks.csv')
 img_name = landmarks_frame.iloc[n, 0]
@@ -31,7 +31,7 @@ def show_landmarks(image, landmarks):
 plt.figure()
 show_landmarks(io.imread(os.path.join('faces/', img_name)),
                landmarks)
-plt.show()
+plt.savefig("results/01.png")
 
 
 # Dataset Class
@@ -84,7 +84,7 @@ for i in range(len(face_dataset)):
   show_landmarks(**sample)
 
   if i == 3:
-    plt.show()
+    plt.savefig("results/02.png")
     break
 
 
@@ -110,13 +110,130 @@ class Rescale(object):
 
     if isinstance(self.output_size, int):
       if h > w:
-        new_h, new_w = self.output_size * (h / w), self.output_size
+        new_h, new_w = self.output_size * h / w, self.output_size
       else:
-        new_h, new_w = self.output_size, self.output_size * (w / h)
+        new_h, new_w = self.output_size, self.output_size * w / h
     else:
       new_h, new_w = self.output_size
     
+    new_h, new_w = int(new_h), int(new_w)
     img = transform.resize(image, (new_h, new_w))
     landmarks = landmarks * [new_w / w, new_h / h]
 
     return { 'image' : img, 'landmarks' : landmarks }
+
+
+class RandomCrop(object):
+  """
+  Crop randomly the image in a sample
+  Args:
+    output_size(tuple or int) : Desired output size. If int, square crop is made.
+  """
+  def __init__(self, output_size):
+    assert isinstance(output_size, (int, tuple))
+    if isinstance(output_size, int):
+      self.output_size = (output_size, output_size)
+    else:
+      assert len(output_size) == 2
+      self.output_size = output_size
+  
+  def __call__(self, sample):
+    image, landmarks = sample['image'], sample['landmarks']
+    
+    h, w = image.shape[:2]
+    new_h, new_w = self.output_size
+
+    top = np.random.randint(0, h - new_h)
+    left = np.random.randint(0, w - new_w)
+
+    image = image[top:top+new_h, left:left+new_w]
+    landmarks = landmarks - [left, top]
+    return { 'image' : image, 'landmarks' : landmarks }
+
+
+class ToTensor(object):
+  """
+  Convert narray in sample to Tensors
+  """
+  def __call__(self, sample):
+    image, landmarks = sample['image'], sample['landmarks']
+
+    # swap color axis because
+    # numpy image : H * W * C
+    # torch image : C * H * W
+    image = image.transpose((2, 0, 1))
+    return { 'image' : torch.from_numpy(image), 'landmarks' : torch.from_numpy(landmarks) }
+
+
+# Compose Transform
+# Apply the transform on the sample
+scale = Rescale(256)
+crop = RandomCrop(128)
+composed = transforms.Compose([Rescale(256), RandomCrop(224)])
+
+fig = plt.figure()
+sample = face_dataset[65]
+for i, tsfrm in enumerate([scale, crop, composed]):
+  transformed_sample = tsfrm(sample)
+
+  ax = plt.subplot(1, 3, i + 1)
+  plt.tight_layout()
+  ax.set_title(type(tsfrm).__name__)
+  show_landmarks(**transformed_sample)
+
+plt.savefig("results/03.png")
+
+
+# Iterating through the dataset
+# 1. An image is read from the file
+# 2. Transforms are applied on the read image
+# 3. Since one of the transforms is random, data is augmentated on sampling
+transformed_dataset = FaceLandmarksDataset(csv_file="faces/face_landmarks.csv",
+                                           root_dir="faces/",
+                                           transform=transforms.Compose([
+                                             Rescale(256),
+                                             RandomCrop(224),
+                                             ToTensor()
+                                           ]))
+
+for i in range(len(transformed_dataset)):
+  sample = transformed_dataset[i]
+  print(i, sample['image'].size(), sample['landmarks'].size())
+  if i == 3:
+    break
+
+# DataLoader
+# 1. Batching the data
+# 2. Shuffling the data
+# 3. Load the data in parallel using, multiprocessing
+dataloader = DataLoader(transformed_dataset, batch_size=4, shuffle=True, num_workers=4)
+
+
+# Helper Functions to show a batch
+def show_landmarks_batch(sample_batched):
+  images_batch, landmarks_batch = sample_batched['image'], sample_batched['landmarks']
+  batch_size = len(images_batch)
+  im_size = images_batch.size(2)
+
+  grid = utils.make_grid(images_batch)
+  plt.imshow(grid.numpy().transpose((1, 2, 0)))
+
+  for i in range(batch_size):
+    plt.scatter(landmarks_batch[i, :, 0].numpy() + i * im_size,
+                    landmarks_batch[i, :, 1].numpy(),
+                    s=10, marker='.', c='r')
+    plt.title('Batch from dataloader')
+
+ 
+for i_batch, sample_batched in enumerate(dataloader):
+    print(i_batch, sample_batched['image'].size(),
+          sample_batched['landmarks'].size())
+
+    # observe 4th batch and stop.
+    if i_batch == 3:
+        plt.figure()
+        show_landmarks_batch(sample_batched)
+        plt.axis('off')
+        plt.ioff()
+        plt.savefig("results/04.png")
+        break
