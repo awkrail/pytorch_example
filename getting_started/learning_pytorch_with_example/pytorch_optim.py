@@ -24,7 +24,7 @@ for t in range(500):
   loss = loss_fn(y_pred, y)
   print(t, loss.item())
 
-  # call optimizer.zero_grad to optimize to zero all of the gradients for the variables.
+  # call optimizer.zero_grad to optimize to zero all of the gradients for the variables
   optimizer.zero_grad()
   loss.backward()
 
