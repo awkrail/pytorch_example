@@ -38,7 +38,7 @@ class Voc:
     self.name = name
     self.trimmed = False
     self.word2index = {}
-    self.index2count = {}
+    self.word2count = {}
     self.index2word = {PAD_token : "PAD", SOS_token : "SOS", EOS_token : "EOS"}
     self.num_words = 3
   
@@ -148,6 +148,7 @@ for pair in pairs[:10]:
     print(pair)
 
 
+MIN_COUNT = 3
 # 学習中に早く収束させるために、めったに使われない単語を削っていく
 # Voc.trim()を利用する
 def trimRareWords(voc, pairs, MIN_COUNT):
