@@ -45,6 +45,8 @@ dataset_sizes = {
   for x in ['train', 'val']
 }
 
+import ipdb; ipdb.set_trace()
+
 class_names = image_datasets['train'].classes
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
