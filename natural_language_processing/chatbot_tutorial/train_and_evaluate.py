@@ -456,7 +456,7 @@ def train(input_variable, lengths, target_variable, mask, max_target_len, encode
   encoder_outputs, encoder_hidden = encoder(input_variable, lengths)
 
   # Create initial decoder input
-  decoder_input = torch.LongTensor([SOS_token for _ in range(batch_size)])
+  decoder_input = torch.LongTensor([[SOS_token for _ in range(batch_size)]])
   decoder_input = decoder_input.to(device)
 
   # Set initial decoder hidden state to the encoder's final hidden state
