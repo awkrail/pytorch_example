@@ -178,7 +178,7 @@ def outputVar(l, voc):
   mask = binaryMatrix(padList)
   mask = torch.ByteTensor(mask)
   padVar = torch.LongTensor(padList)
-  return padList, mask, max_target_len
+  return padVar, mask, max_target_len
 
 # Returns all items for a given batch of pairs
 def batch2TrainData(voc, pair_batch):
