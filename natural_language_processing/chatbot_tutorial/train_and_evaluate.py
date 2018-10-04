@@ -285,7 +285,7 @@ class EncoderRNN(nn.Module):
   
   def forward(self, input_seq, input_lengths, hidden=None):
     # Convert word indexes to embedding
-    embedded = self.embedding(input_seq)
+    embedded = self.embedding(input_seq) # 渡してるシーケンスはindexが入ったものなんだなーと => その辺もよしなにしてくれるのか
     # Pack padded batch of sequence for RNN module
     """
     このpack_padded_sequenceに何の意味があるのかよくわかってない
@@ -345,7 +345,6 @@ class Attn(torch.nn.Module):
     
     # Transpose max_length and batch_size dimensions
     attn_energies = attn_energies.t()
-
     # Return the softmax normalized probability score
     return F.softmax(attn_energies, dim=1).unsqueeze(1)
 
@@ -389,24 +388,29 @@ class LuongAttnDecoderRNN(nn.Module):
     # Calculate attention weights from the current GRU output
     attn_weights = self.attn(rnn_output, encoder_outputs)
     # Multiply attention weights to encoder outputs to get new "weighted sum" context vector
+
+    # Attention重みを掛けてコンテキストベクトルを取得
     context = attn_weights.bmm(encoder_outputs.transpose(0, 1))
-      
     # Concatenate weighted context vector and GRU output using Luong eq. 5
     rnn_output = rnn_output.squeeze(0)
     context = context.squeeze(1)
+
+    # 得られたコンテキストベクトルと, Decoderの出力をconcat
     concat_input = torch.cat((rnn_output, context), 1)
     concat_output = torch.tanh(self.concat(concat_input))
+
     # Predict next word using Luong eq. 6
+    # 出力のインデックスのサイズにまで戻す
     output = self.out(concat_output)
     output = F.softmax(output, dim=1)
     # Return output and final hidden state
     return output, hidden    
 
-def maskNLLoss(inp, target, mask):
+def maskNLLLoss(inp, target, mask):
   nTotal = mask.sum()
-  # TODO : crossEntropyの計算は詳しく手で追う
+  import ipdb; ipdb.set_trace()
   crossEntropy = -torch.log(torch.gather(inp, 1, target.view(-1, 1)))
-  loss = crossEntropy.masked_select(mask).mean()
+  loss = crossEntropy.masked_select(mask).mean() # paddingしたところはLossの計算に入れないようにする
   loss = loss.to(device)
   return loss, nTotal.item()
 
@@ -474,7 +478,7 @@ def train(input_variable, lengths, target_variable, mask, max_target_len, encode
       # Teacher Forcing : Next input is current target
       decoder_input = target_variable[t].view(1, -1)
       # Calculate and accumulate loss
-      mask_loss, nTotal = maskNLLoss(decoder_output, target_variable[t], mask[t])
+      mask_loss, nTotal = maskNLLLoss(decoder_output, target_variable[t], mask[t])
       loss += mask_loss
       print_losses.append(mask_loss.item() * nTotal)
       n_totals += nTotal
