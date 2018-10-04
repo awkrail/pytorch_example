@@ -81,3 +81,100 @@ class RNN(nn.Module):
 """
 Training
 """
+
+# データの前処理 : 入力と出力のテンソルをつくる
+import random
+
+def randomChoice(l):
+  return l[random.randint(0, len(l)-1)]
+
+# Get a random category
+def randomTrainingPair():
+  category = randomChoice(all_categories)
+  line = randomChoice(category_lines[category])
+  return category, line
+
+def categoryTensor(category):
+  li = all_categories.index(category)
+  tensor = torch.zeros(1, n_categories)
+  tensor[0][li] = 1
+  return tensor
+
+def inputTensor(line):
+  tensor = torch.zeros(len(line), 1, n_letters)
+  for li in range(len(line)):
+    letter = line[li]
+    tensor[li][0][all_letters.find(letter)] = 1
+  return tensor
+
+def targetTensor(line):
+  letter_indexes = [all_letters.find(line[li]) for li in range(1, len(line))]
+  letter_indexes.append(n_letters - 1)
+  return torch.LongTensor(letter_indexes)
+
+# Make category, input, and target tensors from a random category, line pair
+def randomTrainingExample():
+    import ipdb; ipdb.set_trace()
+    category, line = randomTrainingPair()
+    category_tensor = categoryTensor(category)
+    input_line_tensor = inputTensor(line)
+    target_line_tensor = targetTensor(line)
+    return category_tensor, input_line_tensor, target_line_tensor
+
+# Training the network
+rnn = RNN(n_letters, 128, n_letters)
+criterion = nn.NLLLoss()
+learning_rate = 0.0005
+
+n_iter = 100000
+print_every = 5000
+plot_every = 500
+all_losses = []
+total_loss = 0 # Reset every plot_every iters
+
+def train(category_tensor, input_line_tensor, target_line_tensor):
+  target_line_tensor.unsqueeze_(-1)
+  hidden = rnn.initHidden()
+
+  # TODO: model.optimを使って書き換える
+  rnn.zero_grad()
+
+  loss = 0
+
+  for i in range(input_line_tensor.size(0)):
+    output, hidden = rnn(category_tensor, input_line_tensor[i], hidden)
+    """
+    WATCH : outputはsoftmaxで返されるはず
+    https://pytorch.org/docs/stable/nn.html
+    によると、softmaxの値とNLLLossを組み合わせるのはいけないとあるが..?
+    """
+    l = criterion(output, target_line_tensor[i])
+    loss += l
+  
+  loss.backward()
+
+  for p in rnn.parameters():
+    p.data.add_(-learning_rate * p.grad.data)
+  
+  return output, loss.item() / input_line_tensor.size(0)
+
+
+for iter in range(1, n_iter + 1):
+  output, loss = train(*randomTrainingExample())
+  total_loss += loss
+
+  if iter % print_every == 0:
+    print("iter {}, loss {}".format(iter, loss))
+  
+  if iter % plot_every == 0:
+    all_losses.append(total_loss / plot_every)
+    total_loss = 0
+
+"""
+Plot the Losses
+"""
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
+plt.figure()
+plt.plot(all_losses)
