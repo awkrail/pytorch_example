@@ -541,7 +541,7 @@ def trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, deco
     # Print Progress
     if iteration % print_every == 0:
       print_loss_avg = print_loss / print_every
-      print("Iteration : {}; Percent complete : {.1f}%; Average loss : {:.4f}".format(
+      print("Iteration : {}; Percent complete : {:.1f}%; Average loss : {:.4f}".format(
         iteration, iteration / n_iteration * 100, print_loss_avg
       ))
       print_loss = 0
