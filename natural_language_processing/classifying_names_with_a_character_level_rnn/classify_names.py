@@ -72,7 +72,6 @@ def lineToTensor(line):
 print(letterToTensor('J'))
 print(lineToTensor('Jones').size())
 
-
 """
 Creating the network
 """
@@ -99,7 +98,6 @@ class RNN(nn.Module):
 
 n_hidden = 128
 rnn = RNN(n_letters, n_hidden, n_categories)
-
 """
 Training
 
@@ -127,7 +125,6 @@ def randomTrainingExample():
 
 for i in range(10):
     category, line, category_tensor, line_tensor = randomTrainingExample()
-    import ipdb; ipdb.set_trace()
     print('category =', category, '/ line =', line)
 
 learning_rate = 0.005
